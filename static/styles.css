@@ -23,6 +23,7 @@ body {
     color: var(--ink);
     background: var(--weather-bg);
     font-family: 'Space Grotesk', sans-serif;
+    transition: color 1.5s ease, background-color 8s ease;
 }
 
 html.dark-mode-preload body {
@@ -156,6 +157,7 @@ h1 em {
     margin-top: 42px;
     padding: 32px;
     background: var(--mint);
+    transition: background-color 8s ease, box-shadow 1.5s ease;
     animation: rise .5s ease both;
 }
 
@@ -425,6 +427,28 @@ body.theme-snow {
 body.theme-storm {
     --weather-bg: #d1d5de;
     --weather-accent: #aab3c4;
+}
+
+body.phase-dawn {
+    --weather-bg: #f4dfc8;
+    --weather-accent: #e4c7a6;
+}
+
+body.phase-day {
+    --weather-bg: #f8f1df;
+}
+
+body.phase-dusk {
+    --weather-bg: #d8c3c2;
+    --weather-accent: #bda5ad;
+}
+
+body.phase-night {
+    --weather-bg: #182536;
+    --weather-accent: #293d56;
+    --ink: #edf4f2;
+    --muted: #aebdc5;
+    --line: rgba(237, 244, 242, .2);
 }
 
 body.theme-rain::after,
@@ -827,4 +851,12 @@ body.dark-mode.theme-storm {
     --control-bg: #58b9a1;
     --control-hover: #77d0b8;
     --control-ink: #0e211d;
+}
+
+body.dark-mode.phase-dawn,
+body.dark-mode.phase-day,
+body.dark-mode.phase-dusk,
+body.dark-mode.phase-night {
+    --weather-bg: #101817;
+    --weather-accent: #203c38;
 }

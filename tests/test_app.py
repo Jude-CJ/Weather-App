@@ -1,13 +1,21 @@
 from unittest.mock import Mock, patch
 
 from app import app
-from weather_service import Weather, WeatherError, _reverse_geocode, weather_code_details
+from weather_service import Weather, WeatherError, _day_phase, _reverse_geocode, weather_code_details
 
 
 def test_weather_code_mapping():
     assert weather_code_details(0) == ("Clear sky", "☀️")
     assert weather_code_details(63) == ("Rain", "🌧️")
     assert weather_code_details(999) == ("Unknown conditions", "•")
+
+
+def test_day_phase_tracks_sunrise_and_sunset():
+    assert _day_phase("2026-09-05T04:30", "2026-09-05T06:00", "2026-09-05T19:30") == "night"
+    assert _day_phase("2026-09-05T05:30", "2026-09-05T06:00", "2026-09-05T19:30") == "dawn"
+    assert _day_phase("2026-09-05T12:00", "2026-09-05T06:00", "2026-09-05T19:30") == "day"
+    assert _day_phase("2026-09-05T20:00", "2026-09-05T06:00", "2026-09-05T19:30") == "dusk"
+    assert _day_phase("2026-09-05T21:00", "2026-09-05T06:00", "2026-09-05T19:30") == "night"
 
 
 def test_home_page_has_search_form():

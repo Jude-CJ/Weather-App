@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any
 
 import requests
@@ -49,6 +50,7 @@ class Weather:
     unit_symbol: str
     wind_unit: str = "km/h"
     theme: str = "clear"
+    day_phase: str = "day"
     hourly: list[HourlyForecast] = field(default_factory=list)
     daily: list[DailyForecast] = field(default_factory=list)
 
@@ -99,6 +101,22 @@ def weather_theme(code: int) -> str:
     if code in {2, 3, 45, 48}:
         return "cloudy"
     return "sunny"
+
+
+def _day_phase(current_time: str, sunrise: str, sunset: str) -> str:
+    try:
+        current = datetime.fromisoformat(current_time)
+        sunrise_time = datetime.fromisoformat(sunrise)
+        sunset_time = datetime.fromisoformat(sunset)
+        if current < sunrise_time - timedelta(hours=1) or current > sunset_time + timedelta(hours=1):
+            return "night"
+        if current < sunrise_time:
+            return "dawn"
+        if current > sunset_time:
+            return "dusk"
+    except (TypeError, ValueError):
+        pass
+    return "day"
 
 
 def _get_json(url: str, params: dict[str, Any]) -> dict[str, Any]:
@@ -212,7 +230,7 @@ def _get_weather_for_coordinates(
             "longitude": longitude,
             "current": "temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m",
             "hourly": "temperature_2m,weather_code",
-            "daily": "temperature_2m_max,temperature_2m_min,weather_code",
+            "daily": "temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset",
             "temperature_unit": temperature_unit,
             "wind_speed_unit": "mph" if temperature_unit == "fahrenheit" else "kmh",
             "timezone": "auto",
@@ -226,6 +244,8 @@ def _get_weather_for_coordinates(
     try:
         current_code = int(current["weather_code"])
         condition, icon = weather_code_details(current_code)
+        sunrise = daily.get("sunrise", [""])[0]
+        sunset = daily.get("sunset", [""])[0]
         hourly_times = hourly["time"][:24]
         hourly_temperatures = hourly["temperature_2m"][:24]
         hourly_codes = hourly["weather_code"][:24]
@@ -268,6 +288,7 @@ def _get_weather_for_coordinates(
             unit_symbol="°F" if temperature_unit == "fahrenheit" else "°C",
             wind_unit="mph" if temperature_unit == "fahrenheit" else "km/h",
             theme=weather_theme(current_code),
+            day_phase=_day_phase(str(current.get("time", "")), str(sunrise), str(sunset)),
             hourly=hourly_forecast,
             daily=daily_forecast,
         )

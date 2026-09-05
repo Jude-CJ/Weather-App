@@ -52,7 +52,7 @@
 </svg>
 {% endmacro %}
 
-<body class="theme-{{ weather.theme if weather else 'clear' }}">
+<body class="theme-{{ weather.theme if weather else 'clear' }} phase-{{ weather.day_phase if weather else 'day' }}">
     <main class="page-shell container">
         <header class="masthead">
             <div>
