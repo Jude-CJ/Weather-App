@@ -77,8 +77,17 @@
                     data-unit="fahrenheit">Imperial <span>°F</span></button>
             </div>
             <button class="location-button" type="button" id="use-location" title="Use your current location"
-                aria-label="Use your current location">⌖</button>
-            <button type="submit">Find weather <span aria-hidden="true">→</span></button>
+                aria-label="Use your current location">
+                <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"></path>
+                    <circle cx="12" cy="9" r="2.2"></circle>
+                </svg>
+                <span class="control-label">Use location</span>
+            </button>
+            <button class="search-submit" type="submit"><span class="control-label">Find weather</span><svg
+                    class="control-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12h13M13 6l6 6-6 6"></path>
+                </svg></button>
         </form>
 
         <section class="favorites-panel" aria-label="Favorite cities">
