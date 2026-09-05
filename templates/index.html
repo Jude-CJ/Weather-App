@@ -5,30 +5,88 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Skyline Weather</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script>
+        try {
+            if (localStorage.getItem('skyline-weather-theme') === 'dark') {
+                document.documentElement.classList.add('dark-mode-preload');
+            }
+        } catch (error) {
+            // Private browsing may deny localStorage access.
+        }
+    </script>
 </head>
 
-<body>
-    <main class="page-shell">
+{% macro weather_icon(condition, class_name='weather-icon') %}
+<svg class="{{ class_name }} weather-svg" viewBox="0 0 96 96" role="img" aria-label="{{ condition }}">
+    {% if 'thunder' in condition|lower %}
+    <g class="svg-cloud">
+        <path d="M22 61h52a13 13 0 0 0 0-26 21 21 0 0 0-40-2A15 15 0 0 0 22 61Z" />
+    </g>
+    <path class="svg-lightning" d="M52 54 39 75h11l-4 17 16-25H51l10-13Z" />
+    {% elif 'snow' in condition|lower %}
+    <g class="svg-cloud">
+        <path d="M22 55h52a13 13 0 0 0 0-26 21 21 0 0 0-40-2A15 15 0 0 0 22 55Z" />
+    </g>
+    <g class="svg-snow">
+        <path d="M34 66v22M24 77h20M27 70l14 14M41 70 27 84M58 66v22M48 77h20M51 70l14 14M65 70 51 84" />
+    </g>
+    {% elif 'rain' in condition|lower or 'shower' in condition|lower or 'drizzle' in condition|lower %}
+    <g class="svg-cloud">
+        <path d="M22 55h52a13 13 0 0 0 0-26 21 21 0 0 0-40-2A15 15 0 0 0 22 55Z" />
+    </g>
+    <g class="svg-rain">
+        <path d="m34 67-5 12M50 67l-5 12M66 67l-5 12" />
+    </g>
+    {% elif 'cloud' in condition|lower or 'fog' in condition|lower or 'overcast' in condition|lower %}
+    <g class="svg-cloud">
+        <path d="M18 63h58a14 14 0 0 0 0-28 23 23 0 0 0-44-2A16 16 0 0 0 18 63Z" />
+    </g>
+    {% else %}
+    <g class="svg-sun">
+        <circle cx="48" cy="45" r="17" />
+        <path d="M48 14v10M48 66v10M17 45h10M69 45h10M26 23l7 7M63 60l7 7M70 23l-7 7M33 60l-7 7" />
+    </g>
+    {% endif %}
+</svg>
+{% endmacro %}
+
+<body class="theme-{{ weather.theme if weather else 'clear' }}">
+    <main class="page-shell container">
         <header class="masthead">
-            <p class="eyebrow">LOCAL FORECAST</p>
+            <div>
+                <p class="eyebrow">LOCAL FORECAST</p>
+                <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark mode"
+                    aria-pressed="false"><span class="theme-toggle-track"><span
+                            class="theme-toggle-thumb"></span></span><span class="theme-label">Dark mode</span></button>
+            </div>
             <h1>Read the sky<br><em>where you are.</em></h1>
             <p class="intro">A clear, current snapshot for any city around the world.</p>
         </header>
 
-        <form class="search-bar" method="get" action="{{ url_for('index') }}">
+        <form class="search-bar" id="search-form" method="get" action="{{ url_for('index') }}">
             <label class="sr-only" for="city">City</label>
             <input id="city" name="city" value="{{ city }}" placeholder="Search a city" autocomplete="address-level2"
                 required>
-            <label class="unit-control" for="unit">
-                <span class="sr-only">Temperature unit</span>
-                <select id="unit" name="unit">
-                    <option value="celsius" {% if unit=='celsius' %}selected{% endif %}>°C</option>
-                    <option value="fahrenheit" {% if unit=='fahrenheit' %}selected{% endif %}>°F</option>
-                </select>
-            </label>
+            <div class="unit-switch" role="group" aria-label="Temperature system">
+                <input type="hidden" id="unit" name="unit" value="{{ unit }}">
+                <button type="button" class="unit-option {% if unit == 'celsius' %}active{% endif %}"
+                    data-unit="celsius">Metric <span>°C</span></button>
+                <button type="button" class="unit-option {% if unit == 'fahrenheit' %}active{% endif %}"
+                    data-unit="fahrenheit">Imperial <span>°F</span></button>
+            </div>
+            <button class="location-button" type="button" id="use-location" title="Use your current location"
+                aria-label="Use your current location">⌖</button>
             <button type="submit">Find weather <span aria-hidden="true">→</span></button>
         </form>
+
+        <section class="favorites-panel" aria-label="Favorite cities">
+            <div class="section-heading"><span class="eyebrow">SAVED PLACES</span><button type="button"
+                    class="text-button" id="clear-favorites">Clear</button></div>
+            <div class="favorites-list" id="favorites-list"><span class="muted-copy">Your favorite cities will appear
+                    here.</span></div>
+        </section>
 
         {% if error %}
         <section class="message error" role="alert">
@@ -36,7 +94,8 @@
             <span>{{ error }}</span>
         </section>
         {% elif weather %}
-        <section class="weather-card" aria-label="Current weather for {{ weather.city }}">
+        <section class="weather-card" aria-label="Current weather for {{ weather.city }}"
+            data-city="{{ weather.city }}">
             <div class="location-line">
                 <div>
                     <p class="eyebrow">CURRENT CONDITIONS</p>
@@ -44,7 +103,7 @@
                     <p class="location-detail">{% if weather.region %}{{ weather.region }}, {% endif %}{{
                         weather.country }}</p>
                 </div>
-                <span class="weather-icon" aria-hidden="true">{{ weather.icon }}</span>
+                {{ weather_icon(weather.condition) }}
             </div>
             <div class="temperature-row">
                 <p class="temperature">{{ weather.temperature|round|int }}<span>{{ weather.unit_symbol }}</span></p>
@@ -58,8 +117,40 @@
                 </div>
                 <div><span>Today's low</span><strong>{{ weather.low|round|int }}{{ weather.unit_symbol }}</strong></div>
                 <div><span>Humidity</span><strong>{{ weather.humidity }}%</strong></div>
-                <div><span>Wind</span><strong>{{ weather.wind_speed|round|int }} km/h</strong><small>{{
+                <div><span>Wind</span><strong>{{ weather.wind_speed|round|int }} {{ weather.wind_unit
+                        }}</strong><small>{{
                         weather.wind_direction }}° direction</small></div>
+            </div>
+            <button class="favorite-button" type="button" id="favorite-city" aria-pressed="false"><span
+                    aria-hidden="true">☆</span> Save {{ weather.city }}</button>
+        </section>
+        <section class="forecast-section" aria-label="Forecast">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">NEXT 24 HOURS</p>
+                    <h3>Hour by hour</h3>
+                </div><span class="scroll-hint">Scroll to explore →</span>
+            </div>
+            <div class="hourly-carousel">
+                {% for hour in weather.hourly %}<article class="hour-card"><time datetime="{{ hour.time }}">{{
+                        hour.time[11:16] }}</time>{{ weather_icon(hour.condition, 'forecast-icon') }}<strong>{{
+                        hour.temperature|round|int }}{{ weather.unit_symbol }}</strong><span
+                        class="forecast-condition">{{ hour.condition }}</span></article>{% endfor %}
+            </div>
+        </section>
+        <section class="forecast-section weekly-section" aria-label="Seven day outlook">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">SEVEN DAY OUTLOOK</p>
+                    <h3>The week ahead</h3>
+                </div>
+            </div>
+            <div class="weekly-grid">
+                {% for day in weather.daily %}<article class="day-card"><time datetime="{{ day.date }}">{{ day.date
+                        }}</time>{{ weather_icon(day.condition, 'forecast-icon') }}<strong>{{
+                        day.high|round|int }}{{ weather.unit_symbol }} / {{ day.low|round|int }}{{ weather.unit_symbol
+                        }}</strong><span class="forecast-condition">{{
+                        day.condition }}</span></article>{% endfor %}
             </div>
         </section>
         {% else %}
@@ -69,9 +160,68 @@
         </section>
         {% endif %}
 
-        <footer>Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a>
+        <footer>Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> ·
+            location names by <a href="https://www.openstreetmap.org/" target="_blank"
+                rel="noreferrer">OpenStreetMap</a>
         </footer>
     </main>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const unit = params.get('unit') || 'celsius';
+        const favoritesKey = 'skyline-weather-favorites';
+        const favoritesList = document.querySelector('#favorites-list');
+        const favoriteButton = document.querySelector('#favorite-city');
+        const currentCity = document.querySelector('.weather-card')?.dataset.city;
+        const searchForm = document.querySelector('#search-form');
+        const favorites = () => {
+            try {
+                const saved = JSON.parse(localStorage.getItem(favoritesKey) || '[]');
+                return Array.isArray(saved) ? saved.filter(city => typeof city === 'string' && city.trim()) : [];
+            } catch {
+                return [];
+            }
+        };
+        function renderFavorites() {
+            const saved = favorites();
+            favoritesList.innerHTML = saved.length ? saved.map(city => `<a href="/?city=${encodeURIComponent(city)}&unit=${unit}">${city}</a>`).join('') : '<span class="muted-copy">Your favorite cities will appear here.</span>';
+            if (favoriteButton && currentCity) {
+                const isSaved = saved.includes(currentCity);
+                favoriteButton.setAttribute('aria-pressed', isSaved);
+                favoriteButton.innerHTML = `<span aria-hidden="true">${isSaved ? '★' : '☆'}</span> ${isSaved ? 'Saved' : 'Save'} ${currentCity}`;
+            }
+        }
+        favoriteButton?.addEventListener('click', () => {
+            const saved = favorites();
+            localStorage.setItem(favoritesKey, JSON.stringify(saved.includes(currentCity) ? saved.filter(city => city !== currentCity) : [...saved, currentCity]));
+            renderFavorites();
+        });
+        document.querySelector('#clear-favorites')?.addEventListener('click', () => { localStorage.removeItem(favoritesKey); renderFavorites(); });
+        document.querySelector('#use-location')?.addEventListener('click', () => {
+            if (!navigator.geolocation) { alert('Location is not available in this browser.'); return; }
+            const button = document.querySelector('#use-location'); button.textContent = '…';
+            navigator.geolocation.getCurrentPosition(({ coords }) => { window.location.href = `/?latitude=${coords.latitude}&longitude=${coords.longitude}&unit=${unit}`; }, () => { button.textContent = '⌖'; alert('We could not access your location. Please allow location access and try again.'); });
+        });
+        document.querySelectorAll('.unit-option').forEach(option => option.addEventListener('click', () => {
+            document.querySelector('#unit').value = option.dataset.unit;
+            searchForm.requestSubmit();
+        }));
+        const themeToggle = document.querySelector('#theme-toggle');
+        if (localStorage.getItem('skyline-weather-theme') === 'dark') document.body.classList.add('dark-mode');
+        document.documentElement.classList.remove('dark-mode-preload');
+        function syncThemeToggle() {
+            const dark = document.body.classList.contains('dark-mode');
+            themeToggle?.setAttribute('aria-pressed', dark);
+            themeToggle?.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+            if (themeToggle) themeToggle.querySelector('.theme-label').textContent = dark ? 'Light mode' : 'Dark mode';
+        }
+        themeToggle?.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('skyline-weather-theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+            syncThemeToggle();
+        });
+        syncThemeToggle();
+        renderFavorites();
+    </script>
 </body>
 
 </html>
